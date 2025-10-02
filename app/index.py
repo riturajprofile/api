@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 import numpy as np
 import json
 from pathlib import Path
@@ -15,10 +14,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-class TelemetryRequest(BaseModel):
-    regions: list[str]
-    threshold_ms: float
 
 # Load telemetry data
 def load_telemetry_data():
@@ -38,9 +33,9 @@ def load_telemetry_data():
 telemetry = load_telemetry_data()
 
 @app.post("/")
-async def analyze(req: TelemetryRequest):
-    regions = req.regions
-    threshold = req.threshold_ms
+async def analyze(request: dict):
+    regions = request.get("regions", [])
+    threshold = request.get("threshold_ms", 0)
     
     result = {}
     
