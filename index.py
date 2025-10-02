@@ -1,12 +1,13 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import numpy as np
 import json
 import os
 
 app = FastAPI()
 
-# Enable CORS for all origins
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,25 +15,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load telemetry bundle once
-with open(os.path.join(os.path.dirname(__file__), "..", "q-vercel-latency.json")) as f:
+# Request schema
+class TelemetryRequest(BaseModel):
+    regions: list[str]
+    threshold_ms: float | None = 0  # optional, defaults to 0
+
+# Load telemetry data from file
+DATA_FILE = os.path.join(os.path.dirname(__file__), "q-vercel-latency.json")
+with open(DATA_FILE, "r") as f:
     telemetry = json.load(f)
 
 @app.post("/")
-async def analyze(request: Request):
-    data = await request.json()
-    regions = data.get("regions", [])
-    threshold = data.get("threshold_ms", 0)
+async def analyze(req: TelemetryRequest):
+    regions = req.regions
+    threshold = req.threshold_ms or 0  # default to 0 if missing
 
     result = {}
-
     for region in regions:
-        records = telemetry.get(region, [])
+        records = [r for r in telemetry if r["region"] == region]
         if not records:
             continue
 
         latencies = [r["latency_ms"] for r in records]
-        uptimes = [r["uptime"] for r in records]
+        uptimes = [r["uptime_pct"] for r in records]
 
         avg_latency = float(np.mean(latencies))
         p95_latency = float(np.percentile(latencies, 95))
