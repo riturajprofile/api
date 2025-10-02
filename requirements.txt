@@ -1,3 +1,2 @@
 fastapi
 numpy
-uvicorn

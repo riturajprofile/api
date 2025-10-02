@@ -7,7 +7,6 @@ import os
 
 app = FastAPI()
 
-# Enable CORS for all origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,12 +14,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Request schema
 class TelemetryRequest(BaseModel):
     regions: list[str]
     threshold_ms: float | None = 0
 
-# Load telemetry JSON file
 DATA_FILE = os.path.join(os.path.dirname(__file__), "q-vercel-latency.json")
 with open(DATA_FILE) as f:
     telemetry = json.load(f)
@@ -29,7 +26,6 @@ with open(DATA_FILE) as f:
 async def analyze(req: TelemetryRequest):
     regions = req.regions
     threshold = req.threshold_ms or 0
-
     result = {}
     for region in regions:
         records = [r for r in telemetry if r["region"] == region]
