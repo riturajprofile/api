@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import numpy as np
@@ -7,27 +7,37 @@ import os
 
 app = FastAPI()
 
+# Fix CORS - allow all methods and credentials
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["POST"],
+    allow_credentials=True,
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
 class TelemetryRequest(BaseModel):
     regions: list[str]
-    threshold_ms: float | None = 0
+    threshold_ms: float | None = None
 
-# Load data file
+# Load data file with error handling
 DATA_FILE = os.path.join(os.path.dirname(__file__), "q-vercel-latency.json")
 
-with open(DATA_FILE) as f:
-    telemetry = json.load(f)
+try:
+    with open(DATA_FILE, 'r') as f:
+        telemetry = json.load(f)
+except FileNotFoundError:
+    raise RuntimeError(f"Data file not found: {DATA_FILE}")
+except json.JSONDecodeError:
+    raise RuntimeError(f"Invalid JSON in data file: {DATA_FILE}")
 
 @app.post("/")
 async def analyze(req: TelemetryRequest):
     regions = req.regions
     threshold = req.threshold_ms if req.threshold_ms is not None else 0
+    
+    if not regions:
+        raise HTTPException(status_code=400, detail="No regions provided")
     
     result = {}
     
@@ -62,3 +72,13 @@ async def analyze(req: TelemetryRequest):
         }
     
     return result
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "records": len(telemetry)}
+
+@app.get("/regions")
+async def get_regions():
+    """Get all available regions"""
+    regions = sorted(set(r.get("region") for r in telemetry if r.get("region")))
+    return {"regions": regions}
