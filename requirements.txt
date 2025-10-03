@@ -1,4 +1,4 @@
 fastapi
-mangum
-pydantic
 uvicorn
+pandas
+numpy
