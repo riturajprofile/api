@@ -1,66 +1,59 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-import numpy as np
+from http.server import BaseHTTPRequestHandler
 import json
-from pathlib import Path
 
-app = FastAPI()
+class handler(BaseHTTPRequestHandler):
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
 
-# Enable CORS for POST requests from any origin
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Load telemetry data
-def load_telemetry_data():
-    possible_paths = [
-        Path(__file__).parent / "q-vercel-latency.json",
-        Path("app/q-vercel-latency.json"),
-        Path("q-vercel-latency.json"),
-    ]
-    
-    for path in possible_paths:
-        if path.exists():
-            with open(path, 'r') as f:
-                return json.load(f)
-    
-    raise FileNotFoundError("q-vercel-latency.json not found")
-
-telemetry = load_telemetry_data()
-
-@app.post("/")
-async def analyze(request: dict):
-    regions = request.get("regions", [])
-    threshold = request.get("threshold_ms", 0)
-    
-    result = {}
-    
-    for region in regions:
-        # Filter records for this region
-        records = [r for r in telemetry if r.get("region") == region]
-        
-        if not records:
-            continue
-        
-        # Extract latencies and uptimes
-        latencies = [r["latency_ms"] for r in records]
-        uptimes = [r["uptime_pct"] for r in records]
-        
-        # Calculate metrics
-        avg_latency = float(np.mean(latencies))
-        p95_latency = float(np.percentile(latencies, 95))
-        avg_uptime = float(np.mean(uptimes))
-        breaches = sum(1 for l in latencies if l > threshold)
-        
-        result[region] = {
-            "avg_latency": avg_latency,
-            "p95_latency": p95_latency,
-            "avg_uptime": avg_uptime,
-            "breaches": breaches,
-        }
-    
-    return result
+    def do_POST(self):
+        try:
+            # Read JSON file
+            with open('q-vercel-latency.json', 'r') as f:
+                data = json.load(f)
+            
+            # Parse request
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = json.loads(self.rfile.read(content_length).decode('utf-8'))
+            
+            regions = body.get('regions', [])
+            threshold = body.get('threshold_ms', 180)
+            
+            result = {}
+            for region in regions:
+                records = [r for r in data if r['region'] == region]
+                if not records:
+                    continue
+                
+                latencies = sorted([r['latency_ms'] for r in records])
+                uptimes = [r['uptime_pct'] for r in records]
+                
+                # Calculate metrics
+                avg_lat = sum(latencies) / len(latencies)
+                p95_idx = int(len(latencies) * 0.95)
+                p95_lat = latencies[min(p95_idx, len(latencies) - 1)]
+                avg_up = sum(uptimes) / len(uptimes)
+                breaches = sum(1 for lat in latencies if lat > threshold)
+                
+                result[region] = {
+                    "avg_latency": round(avg_lat, 2),
+                    "p95_latency": round(p95_lat, 2),
+                    "avg_uptime": round(avg_up, 2),
+                    "breaches": breaches
+                }
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode('utf-8'))
+            
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
