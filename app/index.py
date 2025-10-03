@@ -83,3 +83,4 @@ async def analyze_latency(request: LatencyRequest):
         }
     
     return result
+handler = Mangum(app)
