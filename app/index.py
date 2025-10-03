@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
+import os
 
 app = FastAPI()
 
@@ -18,10 +19,26 @@ class LatencyRequest(BaseModel):
     regions: list[str]
     threshold_ms: float
 
-@app.post("/")
+@app.post("/api")
 async def analyze_latency(request: LatencyRequest):
-    # Read JSON file
-    with open('q-vercel-latency.json', 'r') as f:
+    # Read JSON file - try multiple paths for Vercel
+    file_path = None
+    possible_paths = [
+        'q-vercel-latency.json',
+        '../q-vercel-latency.json',
+        '/var/task/q-vercel-latency.json',
+        os.path.join(os.path.dirname(__file__), '../q-vercel-latency.json')
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path):
+            file_path = path
+            break
+    
+    if not file_path:
+        return {"error": "Data file not found"}
+    
+    with open(file_path, 'r') as f:
         data = json.load(f)
     
     result = {}
