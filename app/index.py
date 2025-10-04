@@ -40,7 +40,7 @@ def load_telemetry():
 
 def calc_metrics(latencies, uptimes, threshold, region=None):
     return {
-        "regions": region,
+        "region": region,
         "avg_latency": round(float(np.mean(latencies)), 2),
         "p95_latency": round(float(np.percentile(latencies, 95)), 2),
         "avg_uptime": round(float(np.mean(uptimes)), 2),
