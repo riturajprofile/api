@@ -6,12 +6,22 @@ import numpy as np
 import os
 
 app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
+# ---------- manual CORS ----------
+@app.middleware("http")
+async def add_cors(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"]  = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
 
 # ---------- models ----------
 class LatencyRequest(BaseModel):
@@ -41,7 +51,7 @@ def calc_metrics(latencies, uptimes, threshold):
 # ---------- routes ----------
 @app.get("/")
 def health():
-    return {"msg": "FastAPI on Vercel works"}
+    return {"msg": "FastAPI on Vercel works fine! :-) hello rituraj here :-) Oooooo! it working"}
 
 @app.post("/api/latency")
 def latency_metrics(body: LatencyRequest):
