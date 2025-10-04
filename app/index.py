@@ -54,11 +54,11 @@ def health():
 @app.post("/api/latency")
 def latency_metrics(body: LatencyRequest):
     telem = load_telemetry()
-    resp = {}
+    resp = []  # Initialize resp as a list
     for reg in body.regions:
         if reg not in telem:
             raise HTTPException(status_code=400, detail=f"region '{reg}' not found")
         lat = [x["latency_ms"] for x in telem[reg]]
         upt = [x["uptime"] for x in telem[reg]]
-        resp[reg] = calc_metrics(lat, upt, body.threshold_ms)
-    return resp
+        resp.append(calc_metrics(lat, upt, body.threshold_ms))
+    return resp.json()
