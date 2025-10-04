@@ -5,11 +5,17 @@ import json
 import numpy as np
 import os
 
-# Enable CORS for all origins
+# Create FastAPI app instance
+app = FastAPI()
+
+# Enable CORS for all origins. Note: when allow_origins is ['*'],
+# many browsers will ignore Access-Control-Allow-Credentials if
+# allow_credentials is True. For a true wildcard + credentials,
+# you must set allow_credentials to False or specify explicit origins.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
