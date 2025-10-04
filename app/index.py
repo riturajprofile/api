@@ -61,4 +61,4 @@ def latency_metrics(body: LatencyRequest):
         lat = [x["latency_ms"] for x in telem[reg]]
         upt = [x["uptime"] for x in telem[reg]]
         resp.append(calc_metrics(lat, upt, body.threshold_ms))
-    return resp.json()
+    return resp
