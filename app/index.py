@@ -38,8 +38,9 @@ def load_telemetry():
         )
     return grouped
 
-def calc_metrics(latencies, uptimes, threshold):
+def calc_metrics(latencies, uptimes, threshold, region=None):
     return {
+        "regions": region,
         "avg_latency": round(float(np.mean(latencies)), 2),
         "p95_latency": round(float(np.percentile(latencies, 95)), 2),
         "avg_uptime": round(float(np.mean(uptimes)), 2),
@@ -60,5 +61,5 @@ def latency_metrics(body: LatencyRequest):
             raise HTTPException(status_code=400, detail=f"region '{reg}' not found")
         lat = [x["latency_ms"] for x in telem[reg]]
         upt = [x["uptime"] for x in telem[reg]]
-        resp.append(calc_metrics(lat, upt, body.threshold_ms))
+        resp.append(calc_metrics(lat, upt, body.threshold_ms, region=reg))
     return {"regions": resp}
